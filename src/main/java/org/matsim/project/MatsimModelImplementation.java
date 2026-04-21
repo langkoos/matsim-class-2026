@@ -38,7 +38,7 @@ public class MatsimModelImplementation extends MATSimApplication {
 	}
 
 	public static void main(String[] args) {
-		MATSimApplication.runWithDefaults(MatsimModelImplementation.class, args);
+		MATSimApplication.execute(MatsimModelImplementation.class, "--config", "scenarios/equil/config-2026.xml");
 	}
 
 	@Override
