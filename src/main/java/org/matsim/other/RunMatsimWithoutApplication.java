@@ -22,9 +22,11 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.contrib.otfvis.OTFVisLiveModule;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.ControllerConfigGroup;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.simwrapper.SimWrapperModule;
 
 /**
  * @author nagel
@@ -42,6 +44,7 @@ public class RunMatsimWithoutApplication {
 		}
 
 		config.controller().setOverwriteFileSetting( OverwriteFileSetting.deleteDirectoryIfExists );
+		config.controller().setCompressionType(ControllerConfigGroup.CompressionType.gzip);
 
         // possibly modify config here
 
@@ -57,9 +60,9 @@ public class RunMatsimWithoutApplication {
 		
 		// possibly modify controler here
 
-		controler.addOverridingModule( new OTFVisLiveModule() ) ;
+//		controler.addOverridingModule( new OTFVisLiveModule() ) ;
 
-//		controler.addOverridingModule( new SimWrapperModule() );
+		controler.addOverridingModule( new SimWrapperModule() );
 		
 		// ---
 		

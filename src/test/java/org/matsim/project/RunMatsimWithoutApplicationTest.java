@@ -64,7 +64,7 @@ public class RunMatsimWithoutApplicationTest {
 				PopulationUtils.readPopulation( expected, utils.getInputDirectory() + "/output_plans.xml.zst" );
 
 				Population actual = PopulationUtils.createPopulation( ConfigUtils.createConfig() ) ;
-				PopulationUtils.readPopulation( actual, utils.getOutputDirectory() + "/output_plans.xml.zst" );
+				PopulationUtils.readPopulation( actual, utils.getOutputDirectory() + "/output_plans.xml.gz" );
 
 				for ( Id<Person> personId : expected.getPersons().keySet()) {
 					double scoreReference = expected.getPersons().get(personId).getSelectedPlan().getScore();
@@ -80,7 +80,7 @@ public class RunMatsimWithoutApplicationTest {
 			}
 			{
 				String expected = utils.getInputDirectory() + "/output_events.xml.zst" ;
-				String actual = utils.getOutputDirectory() + "/output_events.xml.zst" ;
+				String actual = utils.getOutputDirectory() + "/output_events.xml.gz" ;
 				ComparisonResult result = EventsUtils.compareEventsFiles( expected, actual );
 				assertEquals( ComparisonResult.FILES_ARE_EQUAL, result );
 			}

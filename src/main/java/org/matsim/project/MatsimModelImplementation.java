@@ -22,6 +22,7 @@ import org.apache.logging.log4j.core.tools.picocli.CommandLine;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.application.MATSimApplication;
 import org.matsim.core.config.Config;
+import org.matsim.core.config.groups.ControllerConfigGroup;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting;
 
@@ -44,6 +45,7 @@ public class MatsimModelImplementation extends MATSimApplication {
 	protected Config prepareConfig(Config config) {
 
 		config.controller().setOverwriteFileSetting( OverwriteFileSetting.deleteDirectoryIfExists );
+		config.controller().setCompressionType(ControllerConfigGroup.CompressionType.gzip);
 
 		// possibly modify config here
 
