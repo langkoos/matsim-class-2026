@@ -44,6 +44,8 @@ public class RunSaijoSimulation {
         workParams.setClosingTime(18 * 3600);
         config.scoring().addActivityParams(workParams);
 
+        config.global().setCoordinateSystem("EPSG:6672");
+
         // 5. Replanning settings (strategy as in equil scenario)
         // BestScore (0.9) and ReRoute (0.1)
         
