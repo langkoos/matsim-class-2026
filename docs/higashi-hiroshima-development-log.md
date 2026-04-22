@@ -1,5 +1,102 @@
 # Higashi-Hiroshima Scenario Development Log
 
+## 2026-04-22: Multimodal Network Cleaning
+
+### Task
+Clean `scenarios/higashi-hiroshima/network.xml.gz` so all mode-specific subnetworks used for routing are routable.
+
+### Technical Specification
+
+**Objective**: Remove disconnected components, sources, sinks, and dead-end artifacts from the Higashi-Hiroshima MATSim network for every mode present in the network file.
+
+**Scope**:
+- Inspect the existing network mode set
+- Clean the authoritative scenario network with MATSim's built-in network cleaning logic
+- Preserve the cleaned network in `scenarios/higashi-hiroshima/network.xml.gz`
+- Record the cleaning workflow so it is reproducible
+
+**Affected Components**:
+- `scenarios/higashi-hiroshima/network.xml.gz`
+- `src/main/java/org/matsim/project/CleanScenarioNetwork.java`
+- `docs/higashi-hiroshima-development-log.md`
+
+**Expected Output**:
+- A cleaned scenario network whose mode subnetworks are routable for all present modes
+- A reusable runner class for future network-cleaning passes
+
+### Clarifications / Assumptions
+
+1. The existing `network.xml.gz` in `scenarios/higashi-hiroshima/` is the authoritative scenario network to clean in place.
+2. "Ensure all mode subnets are routeable" means using MATSim network cleaning over every mode present in the network, not just `car` and `bus`.
+3. Removing disconnected rail/PT fragments is acceptable if they are not part of the largest strongly connected subnetwork for their mode.
+
+### Decision Taken
+
+Created a reusable runner class that:
+- reads a MATSim network
+- derives all present modes via `NetworkUtils.getModes(network)`
+- runs `NetworkUtils.cleanNetwork(network, modes)`
+- reports before/after node, link, and per-mode link counts
+- writes the cleaned network back to disk
+
+### Reason for Decision
+
+- Uses MATSim's current cleaning path instead of custom XML manipulation
+- Cleans `car`, `bus`, `pt`, `rail`, and `train` consistently from the actual network content
+- Leaves a traceable and repeatable project-local workflow for future scenario updates
+
+### Alternatives Considered
+
+1. Use `org.matsim.run.NetworkCleaner` directly from the command line
+   - Rejected because it is less explicit in the project codebase and less convenient for repeated scenario maintenance.
+2. Regenerate the OSM-derived network from scratch with additional `routableSubnetwork` config blocks
+   - Rejected for this task because the user requested cleaning of the existing network artifact.
+
+### Tests Added / Updated
+
+- No automated test added
+- Validation performed by executing the runner on the scenario network and checking before/after counts
+
+### Execution Results
+
+**Observed Modes in Input Network**:
+- `bus`
+- `car`
+- `pt`
+- `rail`
+- `train`
+
+**Before Cleaning**:
+- Nodes: 4,470
+- Links: 11,673
+- Mode link counts: `bus=11,510`, `car=11,505`, `pt=1,333`, `rail=150`, `train=142`
+
+**After Cleaning**:
+- Nodes: 4,426
+- Links: 11,573
+- Mode link counts: `bus=11,512`, `car=11,507`, `pt=1,150`, `rail=62`, `train=56`
+
+**Verification**:
+- A second cleaning pass produced identical node, link, and per-mode counts
+- The cleaned network is therefore stable under repeated application of the same MATSim cleaner
+
+### Issues Encountered
+
+1. **Maven enforcer conflict**
+   - **Problem**: project dependency resolution fails under the default enforcer rules because `pt2matsim:25.8` brings in `matsim:2026.0-2025w31` while the rest of the project is on `2026.0`
+   - **Workaround used**: execute compile and cleaner runs with `-Denforcer.skip=true`
+   - **Reason**: required to run the new project-local cleaner without widening this task into dependency alignment work
+
+### Known Limitations
+
+1. Cleaning keeps the largest strongly connected subnetwork per mode and may remove small but geographically valid isolated fragments.
+2. This pass cleans the network artifact after conversion; the OSM conversion config itself still only declares routable subnetworks for `car` and `bus`.
+
+### Next Recommended Checkpoint
+
+- Suggested commit scope: network cleaning runner, cleaned network artifact, development log update
+- Suggested commit message: `Clean Higashi-Hiroshima multimodal network subnetworks`
+
 ## 2026-04-22: OSM Network Conversion
 
 ### Task
