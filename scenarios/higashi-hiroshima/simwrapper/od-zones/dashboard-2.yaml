@@ -1,0 +1,112 @@
+header:
+  tab: Higashi-Hiroshima
+  title: Zone-Level OD Demand
+  description: Trip productions and attractions aggregated from the weekday OD matrix
+    and joined to zone polygons.
+  fullScreen: true
+subtabs:
+- title: Scope and exclusions
+  rows:
+  - notes
+- title: Mapped productions and attractions
+  rows:
+  - maps
+- title: Zone totals
+  rows:
+  - table
+layout:
+  notes:
+  - type: text
+    title: Data notes
+    content: |
+      **Inputs**
+      - OD matrix: `original-input-data/modified_ODtable_weekday_long.csv`
+      - Zones: `original-input-data/modified_gisCzone_merge_union/modified_gisCzone_merge_union.shp`
+      - Join key: `bc_zone` in the shapefile to `from`/`to` zone codes in the OD matrix
+
+      **Mapped output**
+      - All 144 zones are shown; zones without matched OD demand remain at zero
+      - Unique OD origin zones observed: 133
+      - Unique OD destination zones observed: 135
+
+      **Excluded from the choropleths**
+      - Unmatched origin demand: 148 trips
+      - Unmatched destination demand: 277 trips
+      - Unmatched origin codes: 01NA=24, 0214=1, 0216=1, 0261=2, 02NA=4, 05NA=6, 06NA=4, 07NA=13, 08NA=25, 0921=1, 09NA=20, 1017=1, 10NA=3, 11NA=6, 1223=1, 12NA=6, 1311=1, 13NA=1, 1403=4, 1404=4, 1405=10, 1406=3, 1407=5, 1408=2
+      - Unmatched destination codes: 01NA=23, 0214=1, 0216=1, 0261=3, 02NA=3, 05NA=5, 06NA=5, 07NA=12, 08NA=26, 0921=1, 09NA=21, 1014=1, 1017=1, 10NA=2, 11NA=7, 1223=1, 12NA=6, 1311=1, 13NA=1, 1403=4, 1404=3, 1405=7, 1406=5, 1407=3, 1408=4, NANA=130
+  maps:
+  - type: map
+    title: Trip productions
+    description: Origin-side trip totals by bc_zone.
+    height: 9.0
+    datasets:
+      zoneTotals: higashi-hiroshima-od-summary.csv
+    center:
+    - 132.75354495493585
+    - 34.56667263425267
+    zoom: 10.5
+    mapIsIndependent: true
+    display:
+      lineWidth:
+        scaleFactor: 0.5
+      lineColor:
+        fixedColors:
+        - "#4B5563"
+      fill:
+        dataset: zoneTotals
+        columnName: productions
+        join: zone
+        colorRamp:
+          ramp: YlOrRd
+          steps: 7
+          reverse: false
+      fillHeight: {}
+      radius: {}
+    minValue: 0.0
+    maxValue: 1830.0
+    shapes:
+      join: bc_zone
+      file: higashi-hiroshima-zones.geojson
+  - type: map
+    title: Trip attractions
+    description: Destination-side trip totals by bc_zone.
+    height: 9.0
+    datasets:
+      zoneTotals: higashi-hiroshima-od-summary.csv
+    center:
+    - 132.75354495493585
+    - 34.56667263425267
+    zoom: 10.5
+    mapIsIndependent: true
+    display:
+      lineWidth:
+        scaleFactor: 0.5
+      lineColor:
+        fixedColors:
+        - "#4B5563"
+      fill:
+        dataset: zoneTotals
+        columnName: attractions
+        join: zone
+        colorRamp:
+          ramp: YlOrRd
+          steps: 7
+          reverse: false
+      fillHeight: {}
+      radius: {}
+    minValue: 0.0
+    maxValue: 1764.0
+    shapes:
+      join: bc_zone
+      file: higashi-hiroshima-zones.geojson
+  table:
+  - type: csv
+    title: Zone production and attraction totals
+    description: Joined summary table used by the map layers.
+    dataset: higashi-hiroshima-od-summary.csv
+    enableFilter: true
+    show:
+    - zone
+    - productions
+    - attractions
+    showAllRows: true

@@ -1,5 +1,197 @@
 # Higashi-Hiroshima Scenario Development Log
 
+## 2026-04-22: OD-Based H-W-H Demand Generation
+
+### Task
+Generate MATSim demand from the weekday OD matrix, zone shapefile, and cleaned Higashi-Hiroshima network, restricted to zones that cover the network.
+
+### Technical Specification
+
+**Objective**: Produce reproducible H-W-H MATSim populations for Higashi-Hiroshima from zonal OD demand with:
+- one `1%` output for smoke testing
+- one `100%` output obtained by scaling the `1%` OD matrix by `100`
+
+**Scope**:
+- load `scenarios/higashi-hiroshima/network.xml.gz`
+- load the OD matrix and zone shapefile from `original-input-data`
+- identify the subset of zones that spatially cover the network
+- keep only OD rows where both origin and destination are in that covered-zone subset
+- generate H-W-H tours with identical morning/evening home coordinates
+- scatter home and work coordinates evenly within their respective polygons
+
+**Affected Components**:
+- `src/main/java/org/matsim/project/GenerateHigashiHiroshimaDemand.java`
+- `scenarios/higashi-hiroshima/plans-hwh-1pct.xml.gz`
+- `scenarios/higashi-hiroshima/plans-hwh-100pct.xml.gz`
+- `scenarios/higashi-hiroshima/demand-covered-zones.csv`
+- `scenarios/higashi-hiroshima/demand-hwh-summary.csv`
+- `docs/higashi-hiroshima-development-log.md`
+
+### Clarifications / Assumptions
+
+1. A zone "covers the network" if it contains at least one MATSim network node.
+2. The OD matrix is already a `1%` daily tour matrix; the `100%` output is created by multiplying retained OD flows by `100`.
+3. Each retained OD tour becomes one H-W-H MATSim plan.
+4. Spatial scattering should be deterministic and even-looking rather than purely random; a low-discrepancy sampler is therefore used inside each polygon.
+5. Legs are generated as `car` legs unless and until a mode synthesis requirement is added.
+6. Activity timing is not specified in the inputs, so a deterministic commuter schedule is used with departures spread from `07:00` to `09:00` and work ends spread from `16:00` to `18:00`.
+
+### Decision Taken
+
+Created a dedicated demand generator that:
+- uses the cleaned scenario network as the supply boundary
+- identifies covered zones from network-node containment
+- filters the OD matrix to internal covered-zone OD pairs
+- samples home and work points inside polygons with deterministic low-discrepancy sequences
+- sets the return-home activity to exactly the same coordinate as the morning home activity
+- writes both `1%` and `100%` populations plus summary CSV outputs
+
+### Reason for Decision
+
+- Restricting to zones with actual network support avoids generating agents for OD pairs outside the modeled area.
+- Node containment is a simple and MATSim-relevant spatial rule that ties demand generation directly to usable network coverage.
+- Deterministic polygon sampling makes the outputs reproducible and visually well-distributed without clustering artifacts from pseudo-random draws.
+
+### Known Limitations
+
+1. Zone coverage is determined from node containment, not full link-geometry overlap.
+2. The current implementation creates only H-W-H tours and does not synthesize other activity chains.
+3. The current implementation uses fixed `car` legs and does not infer modal split from OD data.
+
+### Next Recommended Checkpoint
+
+- Suggested commit scope: demand generator, generated plans outputs, demand summary CSVs, development log update
+- Suggested commit message: `Add OD-based H-W-H demand generation for Higashi-Hiroshima`
+
+## 2026-04-22: SimWrapper OD Dashboard
+
+### Task
+Prepare a simple SimWrapper dashboard that maps trip productions and attractions from the weekday OD matrix onto the zone shapefile.
+
+### Technical Specification
+
+**Objective**: Create a reproducible dashboard pipeline that:
+- reads the original OD matrix
+- aggregates trip productions by origin zone and attractions by destination zone
+- joins those totals to the zone polygons
+- renders both indicators as zone-based maps in SimWrapper
+
+**Scope**:
+- Inspect `original-input-data` to identify the OD matrix and zone geometry
+- Prepare dashboard-ready geospatial and tabular outputs
+- Generate a self-contained SimWrapper dashboard for the Higashi-Hiroshima scenario
+- Record any OD codes that cannot be mapped to shapefile zones
+
+**Affected Components**:
+- `original-input-data/modified_ODtable_weekday_long.csv`
+- `original-input-data/modified_gisCzone_merge_union/modified_gisCzone_merge_union.shp`
+- `src/main/java/org/matsim/project/GenerateHigashiHiroshimaOdDashboard.java`
+- `scenarios/higashi-hiroshima/simwrapper/od-zones/`
+- `docs/higashi-hiroshima-development-log.md`
+
+**Expected Output**:
+- Zone summary CSV with `zone`, `productions`, and `attractions`
+- GeoJSON version of the zone polygons transformed for web mapping
+- SimWrapper dashboard with separate production and attraction choropleths
+
+### Clarifications / Assumptions
+
+1. The correct zone join key is `bc_zone` from the shapefile against `from` and `to` codes in the OD matrix.
+2. The requested view is zone-level production and attraction, not OD desire lines.
+3. OD codes that do not exist in the shapefile should be excluded from the maps but explicitly reported.
+
+### Data Inspection
+
+**OD Matrix**:
+- File: `original-input-data/modified_ODtable_weekday_long.csv`
+- Columns: `from`, `to`, `value`
+- Rows: 1,181
+- Unique origin codes: 133
+- Unique destination codes: 135
+
+**Zone Geometry**:
+- File: `original-input-data/modified_gisCzone_merge_union/modified_gisCzone_merge_union.shp`
+- Geometry: Polygon
+- Features: 144
+- CRS: EPSG:2445 (JGD2000 / Japan Plane Rectangular CS III)
+- Zone id field: `bc_zone`
+
+### Decision Taken
+
+Created `GenerateHigashiHiroshimaOdDashboard.java` as a single entrypoint that:
+- reads and aggregates the OD matrix
+- transforms the shapefile from `EPSG:2445` to `EPSG:4326`
+- writes `higashi-hiroshima-zones.geojson`
+- writes `higashi-hiroshima-od-summary.csv`
+- generates a SimWrapper dashboard with:
+  - one map for productions
+  - one map for attractions
+  - one table of zone totals
+  - one note block documenting exclusions
+
+### Reason for Decision
+
+- Keeps the dashboard generation reproducible and project-local
+- Uses polygon-based mapping, which matches the user requirement better than hexbin or flow-map summaries
+- Converts geometry to a web-friendly CRS before handing it to SimWrapper
+- Makes unmapped OD demand explicit instead of silently dropping it
+
+### Execution Results
+
+**Dashboard output directory**:
+- `scenarios/higashi-hiroshima/simwrapper/od-zones/`
+
+**Generated files**:
+- `dashboard-1.yaml`
+- `simwrapper-config.yaml`
+- `higashi-hiroshima-zones.geojson`
+- `higashi-hiroshima-od-summary.csv`
+
+**Join behavior**:
+- All 144 zones are present in the map layer
+- Zones without matched OD demand are retained with zero values
+
+**Unmatched OD demand excluded from the maps**:
+- Origins: 148 trips
+- Destinations: 277 trips
+
+**Unmatched origin codes**:
+- `01NA`, `0214`, `0216`, `0261`, `02NA`, `05NA`, `06NA`, `07NA`, `08NA`, `0921`, `09NA`, `1017`, `10NA`, `11NA`, `1223`, `12NA`, `1311`, `13NA`, `1403`, `1404`, `1405`, `1406`, `1407`, `1408`
+
+**Unmatched destination codes**:
+- `01NA`, `0214`, `0216`, `0261`, `02NA`, `05NA`, `06NA`, `07NA`, `08NA`, `0921`, `09NA`, `1014`, `1017`, `10NA`, `11NA`, `1223`, `12NA`, `1311`, `13NA`, `1403`, `1404`, `1405`, `1406`, `1407`, `1408`, `NANA`
+
+### Tests Added / Updated
+
+- No automated tests added
+- Validation performed by:
+  - compiling the new dashboard generator
+  - running it end-to-end
+  - checking that the generated SimWrapper YAML references the expected GeoJSON and CSV join fields
+
+### Known Limitations
+
+1. The dashboard currently visualizes only zonal productions and attractions, not OD pair flows.
+2. Unmatched OD codes are reported but not spatialized, because they have no corresponding zone polygon.
+3. The dashboard is generated as static SimWrapper output; serving it is a separate step.
+
+### Follow-up Fix
+
+**Issue**: the initial dashboard maps rendered away from Japan.
+
+**Cause**:
+- the map center needed to be written in `[lon, lat]` order for SimWrapper
+- the generator was initially configured not to overwrite existing dashboard output, which masked the code-side fix until regeneration behavior was corrected
+
+**Fix**:
+- changed the computed map center to `[132.7535, 34.5667]` ordering
+- switched dashboard generation to overwrite the existing output bundle
+
+### Next Recommended Checkpoint
+
+- Suggested commit scope: OD dashboard generator, generated dashboard outputs, development log update
+- Suggested commit message: `Add SimWrapper dashboard for Higashi-Hiroshima OD zones`
+
 ## 2026-04-22: Multimodal Network Cleaning
 
 ### Task
