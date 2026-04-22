@@ -3,6 +3,7 @@ package org.matsim.project;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.ControllerConfigGroup;
 import org.matsim.core.config.groups.ReplanningConfigGroup;
 import org.matsim.core.config.groups.ScoringConfigGroup;
 import org.matsim.core.controler.Controler;
@@ -26,7 +27,7 @@ public class RunSaijoSimulation {
 
         // 3. Controller settings
         config.controller().setOutputDirectory("output_saijo");
-        config.controller().setLastIteration(10);
+        config.controller().setLastIteration(0);
         config.controller().setOverwriteFileSetting(OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists);
 
         // 4. Scoring settings (similar to equil scenario)
@@ -45,6 +46,7 @@ public class RunSaijoSimulation {
         config.scoring().addActivityParams(workParams);
 
         config.global().setCoordinateSystem("EPSG:6672");
+        config.controller().setCompressionType(ControllerConfigGroup.CompressionType.gzip);
 
         // 5. Replanning settings (strategy as in equil scenario)
         // BestScore (0.9) and ReRoute (0.1)
