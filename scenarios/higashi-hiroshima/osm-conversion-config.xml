@@ -22,8 +22,8 @@
 		<param name="outputCoordinateSystem" value="EPSG:2445" />
 		<!-- CSV file containing the full geometry (including start end end node) for each link.
 		This file can be used for visualization purposes in Simunto Via or GIS software. -->
-		<param name="outputDetailedLinkGeometryFile" value="network-detailed-geometry.csv" />
-		<param name="outputNetworkFile" value="network.xml.gz" />
+		<param name="outputDetailedLinkGeometryFile" value="scenarios/higashi-hiroshima/network-detailed-geometry.csv" />
+		<param name="outputNetworkFile" value="scenarios/higashi-hiroshima/network.raw.xml.gz" />
 		<!-- In case the speed limit allowed does not represent the speed a vehicle can actually realize, 
 		e.g. by constrains of traffic lights not explicitly modeled, a kind of "average simulated speed" can be used.
 		Defaults to false. Set true to scale the speed limit down by the value specified by the wayDefaultParams) -->

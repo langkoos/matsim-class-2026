@@ -3,7 +3,7 @@
 ## 2026-04-22: Multimodal Network Cleaning
 
 ### Task
-Clean `scenarios/higashi-hiroshima/network.xml.gz` so all mode-specific subnetworks used for routing are routable.
+Clean the raw Higashi-Hiroshima MATSim network so all mode-specific subnetworks used for routing are routable, and produce the final scenario network.
 
 ### Technical Specification
 
@@ -11,28 +11,36 @@ Clean `scenarios/higashi-hiroshima/network.xml.gz` so all mode-specific subnetwo
 
 **Scope**:
 - Inspect the existing network mode set
-- Clean the authoritative scenario network with MATSim's built-in network cleaning logic
-- Preserve the cleaned network in `scenarios/higashi-hiroshima/network.xml.gz`
+- Clean the raw converted network with MATSim's built-in network cleaning logic
+- Preserve the final cleaned network in `scenarios/higashi-hiroshima/network.xml.gz`
 - Record the cleaning workflow so it is reproducible
 
 **Affected Components**:
+- `scenarios/higashi-hiroshima/network.raw.xml.gz`
 - `scenarios/higashi-hiroshima/network.xml.gz`
 - `src/main/java/org/matsim/project/CleanScenarioNetwork.java`
+- `src/main/java/org/matsim/project/GenerateHigashiHiroshimaNetwork.java`
+- `scenarios/higashi-hiroshima/osm-conversion-config.xml`
 - `docs/higashi-hiroshima-development-log.md`
 
 **Expected Output**:
+- A raw converted network artifact
 - A cleaned scenario network whose mode subnetworks are routable for all present modes
-- A reusable runner class for future network-cleaning passes
+- A reusable conversion-plus-cleaning pipeline for future network builds
 
 ### Clarifications / Assumptions
 
-1. The existing `network.xml.gz` in `scenarios/higashi-hiroshima/` is the authoritative scenario network to clean in place.
-2. "Ensure all mode subnets are routeable" means using MATSim network cleaning over every mode present in the network, not just `car` and `bus`.
+1. The final scenario network should be the cleaned product, not the raw converter output.
+2. "Ensure all mode subnets are routeable" means using MATSim network cleaning over every mode present in the raw network, not just `car` and `bus`.
 3. Removing disconnected rail/PT fragments is acceptable if they are not part of the largest strongly connected subnetwork for their mode.
 
 ### Decision Taken
 
-Created a reusable runner class that:
+Created a reusable cleaner and wired the Higashi-Hiroshima generator into a two-step pipeline:
+- step 1: OSM conversion writes `scenarios/higashi-hiroshima/network.raw.xml.gz`
+- step 2: network cleaning writes `scenarios/higashi-hiroshima/network.xml.gz`
+
+The cleaner:
 - reads a MATSim network
 - derives all present modes via `NetworkUtils.getModes(network)`
 - runs `NetworkUtils.cleanNetwork(network, modes)`
@@ -43,6 +51,7 @@ Created a reusable runner class that:
 
 - Uses MATSim's current cleaning path instead of custom XML manipulation
 - Cleans `car`, `bus`, `pt`, `rail`, and `train` consistently from the actual network content
+- Avoids overwriting the raw conversion artifact when producing the final network
 - Leaves a traceable and repeatable project-local workflow for future scenario updates
 
 ### Alternatives Considered
@@ -50,7 +59,7 @@ Created a reusable runner class that:
 1. Use `org.matsim.run.NetworkCleaner` directly from the command line
    - Rejected because it is less explicit in the project codebase and less convenient for repeated scenario maintenance.
 2. Regenerate the OSM-derived network from scratch with additional `routableSubnetwork` config blocks
-   - Rejected for this task because the user requested cleaning of the existing network artifact.
+   - Rejected because the user asked for a pipeline and the current MATSim cleaner already handles per-mode routeability after conversion.
 
 ### Tests Added / Updated
 
@@ -80,6 +89,19 @@ Created a reusable runner class that:
 - A second cleaning pass produced identical node, link, and per-mode counts
 - The cleaned network is therefore stable under repeated application of the same MATSim cleaner
 
+### Pipeline Contract
+
+1. Conversion input:
+   - `original-input-data/higashi-hiroshima.osm`
+2. Conversion output:
+   - `scenarios/higashi-hiroshima/network.raw.xml.gz`
+3. Cleaning input:
+   - `scenarios/higashi-hiroshima/network.raw.xml.gz`
+4. Final cleaned network:
+   - `scenarios/higashi-hiroshima/network.xml.gz`
+
+The final network is not the direct output of `Osm2MultimodalNetwork`. It is the output of conversion followed by cleaning.
+
 ### Issues Encountered
 
 1. **Maven enforcer conflict**
@@ -90,12 +112,12 @@ Created a reusable runner class that:
 ### Known Limitations
 
 1. Cleaning keeps the largest strongly connected subnetwork per mode and may remove small but geographically valid isolated fragments.
-2. This pass cleans the network artifact after conversion; the OSM conversion config itself still only declares routable subnetworks for `car` and `bus`.
+2. The converter config itself still only declares routable subnetworks for `car` and `bus`, so the cleaning stage remains necessary for the full multimodal network.
 
 ### Next Recommended Checkpoint
 
-- Suggested commit scope: network cleaning runner, cleaned network artifact, development log update
-- Suggested commit message: `Clean Higashi-Hiroshima multimodal network subnetworks`
+- Suggested commit scope: raw-to-cleaned network pipeline, cleaner utility, development log update
+- Suggested commit message: `Make Higashi-Hiroshima network build a conversion-cleaning pipeline`
 
 ## 2026-04-22: OSM Network Conversion
 
@@ -118,7 +140,8 @@ Convert OpenStreetMap data to MATSim network format for Higashi-Hiroshima simula
 - OSM data: 132,653 nodes, 23,261 ways, 276 relations
 
 **Output**:
-- MATSim network: `scenarios/higashi-hiroshima/network.xml.gz`
+- Raw MATSim network: `scenarios/higashi-hiroshima/network.raw.xml.gz`
+- Final cleaned MATSim network: `scenarios/higashi-hiroshima/network.xml.gz`
 - Coordinate system: EPSG:2445
 - Statistics: 4,470 nodes, 11,673 links
 
@@ -145,11 +168,12 @@ Convert OpenStreetMap data to MATSim network format for Higashi-Hiroshima simula
    - Routable subnetworks for car and bus modes
    - Keep paths=false (simplified network)
    - Max link length=500m
+   - Writes raw conversion output to `network.raw.xml.gz`
 
 2. **Runner Class**: `src/main/java/org/matsim/project/GenerateHigashiHiroshimaNetwork.java`
-   - Simple wrapper around `org.matsim.pt2matsim.run.Osm2MultimodalNetwork`
-   - Accepts config path as argument
-   - Provides clean execution interface
+   - Pipeline wrapper around conversion plus cleaning
+   - Produces both raw and final cleaned artifacts
+   - Provides a single reproducible execution path
 
 3. **IntelliJ Run Configuration**: `.idea/runConfigurations/GenerateHigashiHiroshimaNetwork.xml`
 
@@ -169,8 +193,8 @@ Convert OpenStreetMap data to MATSim network format for Higashi-Hiroshima simula
 
 **Issue 3: Output file location**
 - **Problem**: Network output to project root instead of scenario directory
-- **Solution**: Manually moved `network.xml.gz` to `scenarios/higashi-hiroshima/`
-- **Follow-up**: Config should specify absolute or properly-relative output paths
+- **Solution**: Updated config to write directly into `scenarios/higashi-hiroshima/`
+- **Follow-up**: none for the current pipeline
 
 ### Network Statistics
 
@@ -209,8 +233,10 @@ Convert OpenStreetMap data to MATSim network format for Higashi-Hiroshima simula
 
 - ✅ Created: `scenarios/higashi-hiroshima/osm-conversion-config.xml`
 - ✅ Created: `src/main/java/org/matsim/project/GenerateHigashiHiroshimaNetwork.java`
+- ✅ Created: `src/main/java/org/matsim/project/CleanScenarioNetwork.java`
 - ✅ Created: `.idea/runConfigurations/GenerateHigashiHiroshimaNetwork.xml`
-- ✅ Generated: `scenarios/higashi-hiroshima/network.xml.gz` (351 KB gzipped, ~5.2 MB uncompressed)
+- ✅ Generated: `scenarios/higashi-hiroshima/network.raw.xml.gz`
+- ✅ Generated: `scenarios/higashi-hiroshima/network.xml.gz`
 - ✅ Created: `docs/higashi-hiroshima-development-log.md` (this file)
 
 ### Tests Added/Updated
