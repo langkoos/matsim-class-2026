@@ -16,7 +16,7 @@
 		<param name="keepWaysWithPublicTransit" value="true" />
 		<param name="maxLinkLength" value="500.0" />
 		<!-- The path to the osm file. -->
-		<param name="osmFile" value="../../original-input-data/higashi-hiroshima.osm" />
+		<param name="osmFile" value="original-input-data/higashi-hiroshima.osm" />
 		<!-- Output coordinate system. EPSG:* codes are supported and recommended.
 		Use 'WGS84' for no transformation (though this may lead to errors with PT mapping). -->
 		<param name="outputCoordinateSystem" value="EPSG:2445" />
@@ -24,8 +24,6 @@
 		This file can be used for visualization purposes in Simunto Via or GIS software. -->
 		<param name="outputDetailedLinkGeometryFile" value="network-detailed-geometry.csv" />
 		<param name="outputNetworkFile" value="network.xml.gz" />
-		<!-- If true: OSM turn restrictions are parsed and written as disallowedNextLinks attribute to the first link. -->
-		<param name="parseTurnRestrictions" value="true" />
 		<!-- In case the speed limit allowed does not represent the speed a vehicle can actually realize, 
 		e.g. by constrains of traffic lights not explicitly modeled, a kind of "average simulated speed" can be used.
 		Defaults to false. Set true to scale the speed limit down by the value specified by the wayDefaultParams) -->
