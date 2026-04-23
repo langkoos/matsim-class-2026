@@ -19,12 +19,18 @@
 package org.matsim.other;
 
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.network.Link;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Plan;
+import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.contrib.otfvis.OTFVisLiveModule;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.ControllerConfigGroup;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting;
+import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.simwrapper.SimWrapperModule;
 
@@ -51,6 +57,7 @@ public class RunMatsimWithoutApplication {
 		// ---
 		
 		Scenario scenario = ScenarioUtils.loadScenario(config) ;
+		reconcileActivityLinks(scenario);
 
 		// possibly modify scenario here
 		
@@ -68,5 +75,33 @@ public class RunMatsimWithoutApplication {
 		
 		controler.run();
 	}
-	
+
+	private static void reconcileActivityLinks(Scenario scenario) {
+		int repairedActivities = 0;
+
+		for (Person person : scenario.getPopulation().getPersons().values()) {
+			for (Plan plan : person.getPlans()) {
+				for (PlanElement planElement : plan.getPlanElements()) {
+					if (!(planElement instanceof Activity activity)) {
+						continue;
+					}
+					if (activity.getCoord() == null) {
+						continue;
+					}
+					if (activity.getLinkId() != null && scenario.getNetwork().getLinks().containsKey(activity.getLinkId())) {
+						continue;
+					}
+
+					Link nearestLink = NetworkUtils.getNearestLink(scenario.getNetwork(), activity.getCoord());
+					activity.setLinkId(nearestLink.getId());
+					repairedActivities++;
+				}
+			}
+		}
+
+		if (repairedActivities > 0) {
+			System.out.println("Repaired activity link ids against loaded network: " + repairedActivities);
+		}
+	}
+
 }
