@@ -259,12 +259,19 @@
 			<!-- subpopulation to which the strategy applies. "null" refers to the default population, that is, the set of persons for which no explicit subpopulation is defined (ie no subpopulation attribute) -->
 			<param name="subpopulation" value="null" />
 			<!-- weight of a strategy: for each agent, a strategy will be selected with a probability proportional to its weight -->
-			<param name="weight" value="0.9" />
+			<param name="weight" value="0.8" />
 		</parameterset>
 		<parameterset type="strategysettings" >
 			<param name="disableAfterIteration" value="-1" />
 			<param name="executionPath" value="null" />
 			<param name="strategyName" value="ReRoute" />
+			<param name="subpopulation" value="null" />
+			<param name="weight" value="0.1" />
+		</parameterset>
+		<parameterset type="strategysettings" >
+			<param name="disableAfterIteration" value="-1" />
+			<param name="executionPath" value="null" />
+			<param name="strategyName" value="SubtourModeChoice" />
 			<param name="subpopulation" value="null" />
 			<param name="weight" value="0.1" />
 		</parameterset>
@@ -606,7 +613,7 @@
 		<param name="transitStopsAttributesFile" value="null" />
 		<!-- Set this parameter to true if transit should be simulated, false if not. -->
 		<param name="useTransit" value="false" />
-		<param name="usingTransitInMobsim" value="true" />
+		<param name="usingTransitInMobsim" value="false" />
 		<!-- Input file containing the vehicles used by the departures in the transit schedule. -->
 		<param name="vehiclesFile" value="null" />
 	</module>
