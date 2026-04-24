@@ -37,8 +37,53 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.simwrapper.SimWrapperModule;
 
 /**
- * @author nagel
+ * Runs MATSim without {@code MATSimApplication} wiring and optionally applies a simple toll on links tagged as
+ * {@code linkOfInterest}.
  *
+ * <p>Usage:
+ *
+ * <pre>{@code
+ * RunMatsimWithoutApplication [config.xml] [MATSim --config:* overrides] \
+ *     [--lt_upm=-0.02] [--lt_route=true]
+ * }</pre>
+ *
+ * <p>Examples:
+ *
+ * <pre>{@code
+ * # Use the built-in default config scenarios/equil/config-2026.xml
+ * java ... org.matsim.other.RunMatsimWithoutApplication
+ *
+ * # Run a specific config
+ * java ... org.matsim.other.RunMatsimWithoutApplication scenarios/higashi-hiroshima/config-test.xml
+ *
+ * # Run with tolling enabled on tagged links
+ * java ... org.matsim.other.RunMatsimWithoutApplication \
+ *     scenarios/higashi-hiroshima/config-test.xml \
+ *     --lt_upm=-0.02
+ *
+ * # Also include toll disutility in routing
+ * java ... org.matsim.other.RunMatsimWithoutApplication \
+ *     scenarios/higashi-hiroshima/config-test.xml \
+ *     --lt_upm=-0.02 \
+ *     --lt_route=true
+ *
+ * # Pass standard MATSim config overrides alongside the toll options
+ * java ... org.matsim.other.RunMatsimWithoutApplication \
+ *     scenarios/higashi-hiroshima/config-test.xml \
+ *     --config:controller.outputDirectory=output-link-toll \
+ *     --config:controller.lastIteration=5 \
+ *     --lt_upm=-0.02
+ * }</pre>
+ *
+ * <p>Notes:
+ * <ul>
+ *   <li>If no positional config file is provided, {@code scenarios/equil/config-2026.xml} is loaded.</li>
+ *   <li>{@code --lt_upm} is in score units per meter. Use a negative value to model a toll.</li>
+ *   <li>{@code --lt_route=true} adds the same toll effect to car route choice.</li>
+ *   <li>Tolling only applies to links for which {@code TagLinksOfInterest.isLinkOfInterest(link)} is true.</li>
+ * </ul>
+ *
+ * @author nagel
  */
 public class RunMatsimWithoutApplication {
 
