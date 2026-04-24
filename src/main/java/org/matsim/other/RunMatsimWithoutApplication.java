@@ -36,6 +36,9 @@ import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.simwrapper.SimWrapperModule;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Runs MATSim without {@code MATSimApplication} wiring and optionally applies a simple toll on links tagged as
  * {@code linkOfInterest}.
@@ -92,13 +95,13 @@ public class RunMatsimWithoutApplication {
 		LinkOfInterestTollSettings tollSettings = new LinkOfInterestTollSettings(
 				commandLine.getOption("lt_upm").map(Double::parseDouble)
 						.orElse(LinkOfInterestTollSettings.DEFAULT.utilsPerMeter()),
-				commandLine.getOption("lt_route").map(Boolean::parseBoolean)
+				getBooleanOption(commandLine, "lt_route")
 						.orElse(LinkOfInterestTollSettings.DEFAULT.applyInRouting()));
 
 		Config config = commandLine.getPositionalArgument(0)
 				.map(ConfigUtils::loadConfig)
 				.orElseGet(ConfigUtils::createConfig);
-		ConfigUtils.applyCommandline(config, args);
+		ConfigUtils.applyCommandline(config, filterMatsimArgs(args));
 		if (commandLine.getNumberOfPositionalArguments() == 0) {
 			ConfigUtils.loadConfig(config, "scenarios/equil/config-2026.xml");
 		}
@@ -160,6 +163,39 @@ public class RunMatsimWithoutApplication {
 		} catch (CommandLine.ConfigurationException e) {
 			throw new IllegalArgumentException("Invalid command line arguments", e);
 		}
+	}
+
+	private static String[] filterMatsimArgs(String[] args) {
+		if (args == null || args.length == 0) {
+			return new String[0];
+		}
+
+		List<String> matsimArgs = new ArrayList<>();
+		boolean configPathConsumed = false;
+
+		for (String arg : args) {
+			if (!arg.startsWith("-") && !configPathConsumed) {
+				configPathConsumed = true;
+				continue;
+			}
+			if (isCustomOption(arg, "lt_upm") || isCustomOption(arg, "lt_route")) {
+				continue;
+			}
+			matsimArgs.add(arg);
+		}
+
+		return matsimArgs.toArray(String[]::new);
+	}
+
+	private static boolean isCustomOption(String arg, String optionName) {
+		return arg.equals("--" + optionName) || arg.startsWith("--" + optionName + "=");
+	}
+
+	private static java.util.Optional<Boolean> getBooleanOption(CommandLine commandLine, String optionName) {
+		if (!commandLine.hasOption(optionName)) {
+			return java.util.Optional.empty();
+		}
+		return commandLine.getOption(optionName).map(Boolean::parseBoolean).or(() -> java.util.Optional.of(true));
 	}
 
 	private static void reconcileActivityLinks(Scenario scenario) {
