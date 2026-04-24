@@ -47,7 +47,7 @@ import java.util.List;
  *
  * <pre>{@code
  * RunMatsimWithoutApplication [config.xml] [MATSim --config:* overrides] \
- *     [--lt_upm=-0.02] [--lt_route=true]
+ *     [--lt_upm=-0.02] [--lt_route=true] [--loi_signals]
  * }</pre>
  *
  * <p>Examples:
@@ -76,6 +76,11 @@ import java.util.List;
  *     --config:controller.outputDirectory=output-link-toll \
  *     --config:controller.lastIteration=5 \
  *     --lt_upm=-0.02
+ *
+ * # Enable simple rotating signal control at eligible link-of-interest nodes
+ * java ... org.matsim.other.RunMatsimWithoutApplication \
+ *     scenarios/higashi-hiroshima/config-test.xml \
+ *     --loi_signals
  * }</pre>
  *
  * <p>Notes:
@@ -83,6 +88,8 @@ import java.util.List;
  *   <li>If no positional config file is provided, {@code scenarios/equil/config-2026.xml} is loaded.</li>
  *   <li>{@code --lt_upm} is in score units per meter. Use a negative value to model a toll.</li>
  *   <li>{@code --lt_route=true} adds the same toll effect to car route choice.</li>
+ *   <li>{@code --loi_signals} enables a simple 120-second rotating link-level signal approximation on eligible
+ *   nodes adjacent to tagged links.</li>
  *   <li>Tolling only applies to links for which {@code TagLinksOfInterest.isLinkOfInterest(link)} is true.</li>
  * </ul>
  *
@@ -97,6 +104,14 @@ public class RunMatsimWithoutApplication {
 						.orElse(LinkOfInterestTollSettings.DEFAULT.utilsPerMeter()),
 				getBooleanOption(commandLine, "lt_route")
 						.orElse(LinkOfInterestTollSettings.DEFAULT.applyInRouting()));
+		LinkOfInterestSignalSettings signalSettings = new LinkOfInterestSignalSettings(
+				getBooleanOption(commandLine, "loi_signals").orElse(LinkOfInterestSignalSettings.DEFAULT.enabled()),
+				commandLine.getOption("loi_signal_cycle").map(Double::parseDouble)
+						.orElse(LinkOfInterestSignalSettings.DEFAULT.cycleSeconds()),
+				commandLine.getOption("loi_signal_blocked_flow_factor").map(Double::parseDouble)
+						.orElse(LinkOfInterestSignalSettings.DEFAULT.blockedFlowFactor()),
+				commandLine.getOption("loi_signal_blocked_speed_factor").map(Double::parseDouble)
+						.orElse(LinkOfInterestSignalSettings.DEFAULT.blockedSpeedFactor()));
 
 		Config config = commandLine.getPositionalArgument(0)
 				.map(ConfigUtils::loadConfig)
@@ -110,6 +125,13 @@ public class RunMatsimWithoutApplication {
 		config.controller().setCompressionType(ControllerConfigGroup.CompressionType.gzip);
 		System.out.println("Link-of-interest toll utilsPerMeter=" + tollSettings.utilsPerMeter()
 				+ ", applyInRouting=" + tollSettings.applyInRouting());
+		System.out.println("Link-of-interest signals enabled=" + signalSettings.enabled()
+				+ ", cycleSeconds=" + signalSettings.cycleSeconds()
+				+ ", blockedFlowFactor=" + signalSettings.blockedFlowFactor()
+				+ ", blockedSpeedFactor=" + signalSettings.blockedSpeedFactor());
+		if (signalSettings.enabled()) {
+			config.network().setTimeVariantNetwork(true);
+		}
 
         // possibly modify config here
 
@@ -117,6 +139,7 @@ public class RunMatsimWithoutApplication {
 		
 		Scenario scenario = ScenarioUtils.loadScenario(config) ;
 		reconcileActivityLinks(scenario);
+		LinkOfInterestSignalControl.apply(scenario, config, signalSettings);
 
 		// possibly modify scenario here
 		
@@ -157,7 +180,8 @@ public class RunMatsimWithoutApplication {
 			return new CommandLine.Builder(args == null ? new String[0] : args)
 					.allowPositionalArguments(true)
 					.allowAnyOption(false)
-					.allowOptions("lt_upm", "lt_route")
+					.allowOptions("lt_upm", "lt_route", "loi_signals", "loi_signal_cycle",
+							"loi_signal_blocked_flow_factor", "loi_signal_blocked_speed_factor")
 					.allowPrefixes("config")
 					.build();
 		} catch (CommandLine.ConfigurationException e) {
@@ -178,7 +202,10 @@ public class RunMatsimWithoutApplication {
 				configPathConsumed = true;
 				continue;
 			}
-			if (isCustomOption(arg, "lt_upm") || isCustomOption(arg, "lt_route")) {
+			if (isCustomOption(arg, "lt_upm") || isCustomOption(arg, "lt_route")
+					|| isCustomOption(arg, "loi_signals") || isCustomOption(arg, "loi_signal_cycle")
+					|| isCustomOption(arg, "loi_signal_blocked_flow_factor")
+					|| isCustomOption(arg, "loi_signal_blocked_speed_factor")) {
 				continue;
 			}
 			matsimArgs.add(arg);

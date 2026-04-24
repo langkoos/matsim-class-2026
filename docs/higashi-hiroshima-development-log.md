@@ -498,3 +498,55 @@ The simplified network (keepPaths=false) means some geometric detail is lost, bu
 2. Validate network with small test simulation
 3. Calibrate speeds/capacities if needed based on simulation results
 4. Add GTFS transit schedule if available
+
+---
+
+## 2026-04-24 - Simple Link-of-Interest Signal Approximation
+
+### Task / Spec
+
+Implement a simple signal-control approximation using MATSim network change events instead of the signals contrib.
+Eligible nodes are derived from previously tagged links of interest. For each eligible node, rotate a single permissive
+incoming link every 120 seconds while throttling the other incoming links via speed and flow changes.
+
+### Assumptions
+
+- "Links marked in the previous exercise" means links with `linkOfInterest=true` from `TagLinksOfInterest`.
+- Candidate signalized nodes are endpoints of tagged links that have more than one incoming and more than one outgoing
+  car-capable link.
+- "Only one link at a time is allowed to let traffic through" is approximated at the incoming-link level, not by
+  turn-specific movements.
+- Event horizon is taken from `qsim.endTime`; if undefined, the implementation falls back to 30 hours.
+
+### Decisions and Rationale
+
+- Added a dedicated generator that attaches `NetworkChangeEvent`s directly to the loaded network rather than writing a
+  separate change-events file. This keeps the implementation local to the scenario runner and easy to inspect.
+- Used absolute flow-capacity and freespeed changes so each phase fully resets the active and blocked approaches.
+- Limited control to car-capable incoming links because the current runner does not yet separate PT signal logic.
+- Kept the feature opt-in behind a custom CLI flag to avoid silently changing baseline scenario behavior.
+
+### Files Changed
+
+- Modified: `src/main/java/org/matsim/other/RunMatsimWithoutApplication.java`
+- Created: `src/main/java/org/matsim/other/LinkOfInterestSignalControl.java`
+- Created: `src/main/java/org/matsim/other/LinkOfInterestSignalSettings.java`
+
+### Tests Added
+
+- No dedicated automated tests added.
+- Validation performed:
+  - `mvn -q -DskipTests -Denforcer.skip=true compile`
+
+### Open Issues / Risks
+
+1. This is a link-level approximation, not true signal phasing by turn movement.
+2. Bus traffic on controlled links is indirectly affected if those links are also used by transit vehicles.
+3. The permissive approach order is deterministic by incoming link id, not by observed demand or geometry.
+4. Simultaneous nearby controlled nodes may create unrealistically strong corridor gating if the tagged network is dense.
+5. `config.network().setTimeVariantNetwork(true)` must be set before scenario creation; setting it during event
+   attachment fails because the network factory has already been instantiated as non-time-variant.
+
+### Suggested Checkpoint Commit
+
+`Add simple link-of-interest signal control via network change events`
